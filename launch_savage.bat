@@ -1,23 +1,51 @@
 @echo off
+setlocal
 title SAVAGE SYSTEM BOOTLOADER
+color 0B
+
 echo ==================================================
-echo 🚀 STARTING UNIVERSAL KNOWLEDGE ENGINE
+echo           NOVATECH ROBO PVT LTD
+echo    UNIVERSAL KNOWLEDGE ENGINE - BOOT SEQUENCE
 echo ==================================================
+echo.
 
-:: 1. Start the FastAPI Backend in a new window
-echo 🧠 Initializing Sentinel AI (Backend)...
-start "SAVAGE BACKEND" cmd /k "cd apps\api-server && uv run python main.py"
+:: 1. Check if UV is installed for the Backend
+echo [1/3] Checking Backend Environment...
+where uv >nul 2>nul
+if %errorlevel% neq 0 (
+    echo ❌ ERROR: 'uv' not found. Please install it first.
+    pause
+    exit /b
+)
+echo ✅ UV detected.
 
-:: Wait 3 seconds to let the backend port (8000) initialize
-timeout /t 3 /nobreak > nul
+:: 2. Start the FastAPI Backend
+echo [2/3] Launching Sentinel AI (Backend)...
+:: We use 'start' to open a new window so you can see the logs
+start "SAVAGE_BACKEND" cmd /k "uv run python apps/api-server/main.py"
 
-:: 2. Start the Next.js Frontend in a new window
-echo 🌐 Initializing Command Center (Frontend)...
-start "SAVAGE FRONTEND" cmd /k "cd apps\web-ui && npm run dev"
+:: Wait for the backend to claim port 8000
+echo ⏳ Waiting for API to initialize...
+timeout /t 5 /nobreak > nul
 
+:: 3. Start the Next.js Frontend
+echo [3/3] Launching Command Center (Frontend)...
+if not exist "apps\web-ui\node_modules" (
+    echo 📦 Installing frontend dependencies...
+    cd apps\web-ui && npm install && cd ..\..
+)
+
+start "SAVAGE_FRONTEND" cmd /k "cd apps\web-ui && npm run dev"
+
+echo.
 echo ==================================================
 echo ✅ BOOT SEQUENCE COMPLETE
-echo 🖥️  Backend: http://localhost:8000
-echo 🖥️  Frontend: http://localhost:3000
+echo.
+echo 🖥️  API SERVER  : http://localhost:8000
+echo 🖥️  WEB DASHBOARD: http://localhost:3000
+echo.
+echo 🤖 SYSTEM STATUS: ONLINE
 echo ==================================================
-pause
+echo.
+echo Press any key to terminate the bootloader (Note: Windows will stay open).
+pause > nul
