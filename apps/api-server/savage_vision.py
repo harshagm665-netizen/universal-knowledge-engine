@@ -1,25 +1,20 @@
-import cv2
-import numpy as np
+from ultralytics import YOLO
 
-class SavageVision:
+class VisionEngine:
     def __init__(self):
-        # Your Model Initialization (YOLO, etc)
-        pass
+        # Using the Nano model for CPU efficiency
+        self.model = YOLO("yolov8n.pt")
 
     def get_patch_data(self, frame):
-        if frame is None: return []
+        results = self.model(frame, verbose=False)
+        detections = []
+        for r in results:
+            for box in r.boxes:
+                detections.append({
+                    "name": self.model.names[int(box.cls)],
+                    "conf": float(box.conf),
+                    "box": box.xyxy[0].tolist()
+                })
+        return detections
 
-        # 1. BRIGHTNESS CHECK (Prevents false positives in the dark)
-        avg_brightness = np.mean(frame)
-        if avg_brightness < 20:
-            print("🌑 DARKNESS DETECTED: Lens covered or lights off. Skipping AI.")
-            return []
-
-        # 2. PROCEED TO DETECTION
-        # This is where your YOLO model runs
-        # results = self.model(frame)
-        
-        # Placeholder detection
-        return [{"name": "person", "confidence": 0.9}]
-
-vision_engine = SavageVision()
+vision_engine = VisionEngine()
