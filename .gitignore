@@ -1,0 +1,6 @@
+node_modules/
+ollama_storage/
+.env
+*.pyc
+dist/
+build/

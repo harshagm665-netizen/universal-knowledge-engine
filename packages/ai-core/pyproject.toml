@@ -1,0 +1,14 @@
+[project]
+name = "ai-core"
+version = "0.1.0"
+description = "AI Core Logic"
+requires-python = ">=3.12"
+dependencies = [
+    "numpy>=2.4.2",
+    "pymilvus>=2.6.9",
+]
+
+# Using a simpler build backend to avoid the encoding check
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
