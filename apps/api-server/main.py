@@ -1,9 +1,4 @@
-import uvicorn
-import cv2
-import threading
-import time
-import serial
-import numpy as np
+import uvicorn, cv2, threading, time, serial, numpy as np
 from fastapi import FastAPI
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -15,10 +10,8 @@ class SavageEye:
         self.cap = cv2.VideoCapture(0, cv2.CAP_MSMF)
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 320)
         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 240)
-        self.ret = False
-        self.frame = None
-        self.stopped = False
-        self.blueprint_mode = True # Set to True for the sketch look
+        self.ret, self.frame = False, None
+        self.stopped, self.blueprint_mode = False, True
 
     def start(self):
         threading.Thread(target=self.update, daemon=True).start()
@@ -27,27 +20,19 @@ class SavageEye:
     def update(self):
         while not self.stopped:
             ret, frame = self.cap.read()
-            if ret: 
-                self.ret, self.frame = ret, frame
-            time.sleep(0.1) 
+            if ret: self.ret, self.frame = ret, frame
+            time.sleep(0.05)
 
     def get_current_frame(self):
         return self.frame.copy() if self.ret else None
 
     def get_frame_bytes(self):
-        if not self.ret or self.frame is None:
-            return self.create_placeholder()
-
-        # --- BLUEPRINT (EDGE) PROCESSING ---
+        if not self.ret or self.frame is None: return self.create_placeholder()
+        display_frame = self.frame
         if self.blueprint_mode:
             gray = cv2.cvtColor(self.frame, cv2.COLOR_BGR2GRAY)
-            # Canny finds the boundaries. 100/200 are the threshold values.
             edges = cv2.Canny(gray, 100, 200)
-            # Convert back to BGR so it displays correctly in browser
             display_frame = cv2.cvtColor(edges, cv2.COLOR_GRAY2BGR)
-        else:
-            display_frame = self.frame
-
         _, buffer = cv2.imencode('.jpg', display_frame)
         return buffer.tobytes()
 
@@ -57,20 +42,17 @@ class SavageEye:
         _, buffer = cv2.imencode('.jpg', img)
         return buffer.tobytes()
 
-    def is_available(self):
-        return self.cap is not None and self.cap.isOpened()
-
     def release(self):
         self.stopped = True
         if self.cap: self.cap.release()
 
-# Hardware Setup
 eye = SavageEye()
 try:
     arduino = serial.Serial('COM3', 115200, timeout=0)
-    print("✅ Arduino Connected")
-except:
+    print("✅ Arduino Connected on COM3")
+except Exception as e:
     arduino = None
+    print(f"⚠️ Arduino Not Found: {e}")
 
 agent = AutonomousAgent(arduino, vision_source=eye)
 
@@ -90,17 +72,8 @@ async def video_feed():
     def generate():
         while True:
             yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + eye.get_frame_bytes() + b'\r\n')
-            time.sleep(0.2)
+            time.sleep(0.1)
     return StreamingResponse(generate(), media_type="multipart/x-mixed-replace; boundary=frame")
-
-@app.post("/manual/analyze")
-async def manual_analyze():
-    frame = eye.get_current_frame()
-    if frame is not None:
-        from savage_vision import vision_engine
-        detections = vision_engine.get_patch_data(frame)
-        return {"status": "success", "detections": detections}
-    return {"status": "error"}
 
 @app.post("/manual/wave")
 async def manual_wave():
